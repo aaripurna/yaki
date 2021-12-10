@@ -1,5 +1,5 @@
 defmodule YakiCore.Configuration do
-  @type variant() :: {atom(), {height :: number(), {width :: number()}}}
+  @type variant() :: {atom(), {height :: integer(), width :: integer(), opts :: keyword()}}
 
   defstruct [:adapters, :default_adapter, :variants]
 
@@ -30,6 +30,15 @@ defmodule YakiCore.Configuration do
 
   def default_adapter do
     GenServer.call(__MODULE__, :default_adapter)
+  end
+
+  def reset do
+    GenServer.cast(__MODULE__, :reset)
+  end
+
+  @spec add_variant(variant()) :: :ok
+  def add_variant(variant) do
+    GenServer.cast(__MODULE__, {:add_variant, variant})
   end
 
   @spec add_adapter({atom(), module()}) :: :ok
@@ -80,6 +89,20 @@ defmodule YakiCore.Configuration do
 
   @impl true
   def handle_cast({:set_variants, variants}, state) do
+    {:noreply, Map.put(state, :variants, variants ++ state.variants)}
+  end
+
+  @impl true
+  def handle_cast({:add_variant, variant}, state) do
+    variants = [variant | Map.get(state, :variants)]
     {:noreply, Map.put(state, :variants, variants)}
+  end
+
+  @impl true
+  def handle_cast(:reset, _state) do
+    {:noreply, %YakiCore.Configuration{
+       adapters: [],
+       variants: []
+     }}
   end
 end

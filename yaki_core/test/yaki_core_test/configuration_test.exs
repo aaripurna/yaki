@@ -5,7 +5,7 @@ defmodule YakiCore.ConfigurationTest do
   defmodule AnotherExampleModule do
   end
 
-  use ExUnit.Case, async: true
+  use ExUnit.Case
 
   doctest YakiCore.Configuration
 
@@ -32,15 +32,18 @@ defmodule YakiCore.ConfigurationTest do
 
   test "it allows to set variants" do
     YakiCore.Configuration.set_variants(
-      original: {400, 300},
+      original: {400, 300, [resize_to: :fill]},
       cover: {800, 600},
       thumbnail: {100, 75}
     )
 
-    assert YakiCore.Configuration.variants() == [
-             original: {400, 300},
-             cover: {800, 600},
-             thumbnail: {100, 75}
-           ]
+    assert(YakiCore.Configuration.variants() |> Enum.member?({:original, {400, 300, [resize_to: :fill]}}))
+    assert(YakiCore.Configuration.variants() |> Enum.member?({:cover, {800, 600}}))
+    assert(YakiCore.Configuration.variants() |> Enum.member?({:thumbnail, {100, 75}}))
+  end
+
+  test "add variant" do
+    YakiCore.Configuration.add_variant({:example, {400, 400, [resize_to: :fill]}})
+    assert(YakiCore.Configuration.variants() |> Enum.member?({:example, {400, 400, [resize_to: :fill]}}))
   end
 end

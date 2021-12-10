@@ -16,3 +16,23 @@ defmodule YakiCore.RawFile do
           content_type: String.t()
         }
 end
+
+defmodule YakiCore.FileVariant do
+  defstruct [:name, :filename, :content_type, :path, :options]
+
+  @type t() :: %__MODULE__{
+    name: String.t(),
+    filename: String.t(),
+    content_type: String.t(),
+    path: String.t(),
+    options: any(),
+  }
+end
+
+defmodule YakiCore.FileOutputOne do
+  defstruct [:adapter, :variants]
+  @type t() :: %__MODULE__{
+    adapter: String.t(),
+    variants: list(YakiCore.FileVariant.t())
+  }
+end
