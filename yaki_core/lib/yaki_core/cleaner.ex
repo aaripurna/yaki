@@ -9,7 +9,7 @@ defmodule YakiCore.Cleaner do
   def is_media_file?(file_path) do
     file_ext = Path.extname(file_path)
 
-    File.exists?(file_path) &&  Enum.member?(@allowed_media_types, file_ext)
+    File.exists?(file_path) && Enum.member?(@allowed_media_types, file_ext)
   end
 
   @spec delete(String.t()) :: :ok | {:error, atom}

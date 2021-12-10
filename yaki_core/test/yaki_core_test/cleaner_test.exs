@@ -25,6 +25,8 @@ defmodule YakiCoreTest.CleanerTest do
   describe "#delete(file_path)" do
     setup do
       File.cp!(@file_path, @new_file_path)
+
+      on_exit(fn -> File.rm(@new_file_path) end)
     end
 
     test "it deletes media file" do
