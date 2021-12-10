@@ -1,23 +1,23 @@
 defmodule YakiCore.Configuration do
   @type variant() :: {atom(), {height :: number(), {width :: number()}}}
 
-
   defstruct [:adapters, :default_adapter, :variants]
-  @type t() :: %__MODULE__{
-    adapters: list({atom(), module()}),
-    default_adapter: {atom(), module()},
-    variants: list(variant())
-  }
 
+  @type t() :: %__MODULE__{
+          adapters: list({atom(), module()}),
+          default_adapter: {atom(), module()},
+          variants: list(variant())
+        }
 
   use GenServer
 
   @impl true
   def init(_args) do
-    {:ok, %YakiCore.Configuration {
-      adapters: [],
-      variants: []
-    }}
+    {:ok,
+     %YakiCore.Configuration{
+       adapters: [],
+       variants: []
+     }}
   end
 
   def start_link(opts) do
@@ -69,7 +69,7 @@ defmodule YakiCore.Configuration do
 
   @impl true
   def handle_cast({:add_adapter, adapter}, state) do
-    adapters =  [adapter | Map.get(state, :adapters)]
+    adapters = [adapter | Map.get(state, :adapters)]
     {:noreply, Map.put(state, :adapters, adapters)}
   end
 

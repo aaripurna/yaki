@@ -1,5 +1,6 @@
 defmodule YakiCore.Main do
   alias YakiCore.Configuration
+
   defmacro adapter(name, module) do
     Configuration.add_adapter({name, module})
   end
@@ -14,14 +15,14 @@ defmodule YakiCore.Main do
   end
 
   def adapters do
-    Configuration.adapters
+    Configuration.adapters()
   end
 
   def default_adapter do
-    Configuration.default_adapter
+    Configuration.default_adapter()
   end
 
   def variants do
-    Configuration.variants
+    Configuration.variants()
   end
 end

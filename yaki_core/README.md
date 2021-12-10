@@ -4,6 +4,8 @@
 
 ## Installation
 
+This module requires `imagemagick` for creating variants
+
 If [available in Hex](https://hex.pm/docs/publish), the package can be installed
 by adding `yaki_core` to your list of dependencies in `mix.exs`:
 
