@@ -12,35 +12,36 @@ defmodule YakiCore do
       @before_compile unquote(__MODULE__)
 
       def configuration do
-        %YakiCore.Configuration {
+        %YakiCore.Configuration{
           adapters: adapters(),
           default_adapter: default_adapter(),
-          variants: variants(),
+          variants: variants()
         }
       end
 
       @spec new(YakiCore.RawFile.t()) :: YakiCore.FileOne.t()
       def new(%YakiCore.RawFile{} = source) do
-        %YakiCore.FileOne {
+        %YakiCore.FileOne{
           configuration: configuration(),
           source: source,
           temp_variants: [],
           output: nil
         }
-          |> create_variant(variants())
+        |> create_variant(variants())
       end
 
       @spec save(YakiCore.FileOne.t()) :: YakiCore.FileOne.t()
       def save(%YakiCore.FileOne{} = file) do
-        {name, adapter} = default_adapter()
-        adapter.save(file, name)
-          |> remove_tmp()
+        {name, [adapter, opts]} = default_adapter()
+
+        adapter.save(file, opts)
+        |> remove_tmp()
       end
 
       def create(any) do
         init(any)
-          |> new()
-          |> save()
+        |> new()
+        |> save()
       end
     end
   end
@@ -61,22 +62,33 @@ defmodule YakiCore do
     end
   end
 
-  defmacro adapter(name, module) do
+  defmacro adapter(module, opts \\ []) do
     module = expand_alias(module, __CALLER__)
+    opts = Macro.escape(opts)
+    name = Keyword.get(opts, :name)
+
+    if !is_atom(name) || name == nil do
+      raise CompileError,
+        description: "Invalid argument, name must be an atom",
+        file: __ENV__.file,
+        line: __ENV__.line
+    end
+
     quote do
-      @adapters {unquote(name), unquote(module)}
+      @adapters {unquote(name), [unquote(module), unquote(opts)]}
       :ok
     end
   end
 
   defmacro variants(args) do
-    variants = Enum.map(args, fn {key, value} ->
-      case value do
-        {:{}, _, [height, width, opts]} -> {key, {height, width, opts}}
-        {height, width} -> {key, {height, width, []}}
-      end
-
-    end) |> Macro.escape()
+    variants =
+      Enum.map(args, fn {key, value} ->
+        case value do
+          {:{}, _, [height, width, opts]} -> {key, {height, width, opts}}
+          {height, width} -> {key, {height, width, []}}
+        end
+      end)
+      |> Macro.escape()
 
     quote do
       @variants unquote(variants)
@@ -94,31 +106,39 @@ defmodule YakiCore do
       :ok
     end
   end
-  def create_variant(%YakiCore.FileOne{} = file, variants) do
-    new_variants = Enum.map(variants, fn {name, {height, width, opts}} ->
-      {variant, result} = YakiCore.Transformer.transform(%YakiCore.Variant {
-        name: name,
-        size: {height, width}
-      }, file.source, opts)
 
-      %YakiCore.FileVariant{
-        name: variant.name,
-        filename: result.filename,
-        path: result.path,
-        content_type: result.content_type,
-        options: {}
-      }
-    end)
+  def create_variant(%YakiCore.FileOne{} = file, variants) do
+    new_variants =
+      Enum.map(variants, fn {name, {height, width, opts}} ->
+        {variant, result} =
+          YakiCore.Transformer.transform(
+            %YakiCore.Variant{
+              name: name,
+              size: {height, width}
+            },
+            file.source,
+            opts
+          )
+
+        %YakiCore.FileVariant{
+          name: variant.name,
+          filename: result.filename,
+          path: result.path,
+          content_type: result.content_type,
+          options: {}
+        }
+      end)
 
     {variant, result} = YakiCore.Transformer.inspect(:original, file.source)
 
     original = %YakiCore.FileVariant{
-                  name: variant.name,
-                  filename: result.filename,
-                  path: result.path,
-                  content_type: result.content_type,
-                  options: {}
-                }
+      name: variant.name,
+      filename: result.filename,
+      path: result.path,
+      content_type: result.content_type,
+      options: {}
+    }
+
     Map.put(file, :temp_variants, [original | new_variants])
   end
 
