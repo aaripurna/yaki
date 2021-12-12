@@ -19,7 +19,7 @@ defmodule YakiCoreTest.TransformerTest do
         content_type: "image/jpeg"
       })
 
-    assert Map.get(variant, :size) == {2641, 1760}
+    assert Map.get(variant, :size) == {1200, 800}
   end
 
   test "it allows to resize image" do

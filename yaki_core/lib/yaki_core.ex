@@ -1,53 +1,101 @@
 defmodule YakiCore do
-  # @callback init(any()) :: any()
+  @callback init(any) :: YakiCore.RawFile.t()
 
-  alias YakiCore.Configuration
+  defmacro __using__(_opts) do
+    quote do
+      import YakiCore
+      @behaviour YakiCore
 
-  @spec adapter(atom, module) :: :ok
-  defmacro adapter(name, module) do
-    Configuration.add_adapter({name, expand_alias(module, __CALLER__)})
-  end
+      Module.register_attribute(__MODULE__, :adapters, accumulate: true)
+      @variants []
 
-  @spec variants(list(YakiCore.Configuration.variant())) :: :ok
-  defmacro variants(variants) do
-    Enum.map(variants, fn {key, value} ->
-      case value do
-        {height, width} -> {key, {height, width, []}}
-        {_, _, [height, width, opts]} -> {key, {height, width, opts}}
+      @before_compile unquote(__MODULE__)
+
+      def configuration do
+        %YakiCore.Configuration {
+          adapters: adapters(),
+          default_adapter: default_adapter(),
+          variants: variants(),
+        }
       end
 
-    end)
-     |> Configuration.set_variants()
+      @spec new(YakiCore.RawFile.t()) :: YakiCore.FileOne.t()
+      def new(%YakiCore.RawFile{} = source) do
+        %YakiCore.FileOne {
+          configuration: configuration(),
+          source: source,
+          temp_variants: [],
+          output: nil
+        }
+          |> create_variant(variants())
+      end
+
+      @spec save(YakiCore.FileOne.t()) :: YakiCore.FileOne.t()
+      def save(%YakiCore.FileOne{} = file) do
+        {name, adapter} = default_adapter()
+        adapter.save(file, name)
+          |> remove_tmp()
+      end
+
+      def create(any) do
+        init(any)
+          |> new()
+          |> save()
+      end
+    end
+  end
+
+  defmacro __before_compile__(_env) do
+    quote do
+      def adapters do
+        @adapters
+      end
+
+      def variants do
+        @variants
+      end
+
+      def default_adapter do
+        {@default_adapter, adapters() |> Keyword.get(@default_adapter)}
+      end
+    end
+  end
+
+  defmacro adapter(name, module) do
+    module = expand_alias(module, __CALLER__)
+    quote do
+      @adapters {unquote(name), unquote(module)}
+      :ok
+    end
+  end
+
+  defmacro variants(args) do
+    variants = Enum.map(args, fn {key, value} ->
+      case value do
+        {:{}, _, [height, width, opts]} -> {key, {height, width, opts}}
+        {height, width} -> {key, {height, width, []}}
+      end
+
+    end) |> Macro.escape()
+
+    quote do
+      @variants unquote(variants)
+      :ok
+    end
   end
 
   defp expand_alias({:__aliases__, _, _} = alias, env), do: Macro.expand(alias, env)
 
   defp expand_alias(other, _env), do: other
 
-  @spec default(atom) :: :ok
   defmacro default(name) do
-    Configuration.set_default_adapter(name)
+    quote do
+      @default_adapter unquote(name)
+      :ok
+    end
   end
-
-  @spec new(YakiCore.RawFile.t()) :: YakiCore.FileOne.t()
-  def new(%YakiCore.RawFile{} = source) do
-    %YakiCore.FileOne {
-      configuration: configuration(),
-      source: source,
-      temp_variants: [],
-      output: nil
-    }
-      |> create_variant()
-  end
-
-  @spec save(YakiCore.FileOne.t()) :: YakiCore.FileOne.t()
-  def save(%YakiCore.FileOne{} = file) do
-    {name, adapter} = default_adapter()
-    adapter.save(file, name)
-  end
-
-  def create_variant(%YakiCore.FileOne{} = file) do
-    new_variants = Enum.map(variants(), fn {name, {height, width, opts}} ->
+  def create_variant(%YakiCore.FileOne{} = file, variants) do
+    new_variants = Enum.map(variants, fn {name, {height, width, opts}} ->
       {variant, result} = YakiCore.Transformer.transform(%YakiCore.Variant {
         name: name,
         size: {height, width}
@@ -78,38 +126,11 @@ defmodule YakiCore do
     YakiCore.Cleaner.delete(file.path)
   end
 
-  def rollback(%YakiCore.FileOne{} = file) do
+  def remove_tmp(%YakiCore.FileOne{} = file) do
     Enum.each(file.temp_variants, fn variant ->
-      remove_file(variant.path)
+      remove_file(variant)
     end)
-  end
 
-  @spec adapters :: keyword(module())
-  def adapters do
-    Configuration.adapters()
-  end
-
-  @spec default_adapter :: {atom(), module()}
-  def default_adapter do
-    Configuration.default_adapter()
-  end
-
-  def variants do
-    Configuration.variants()
-  end
-
-  def configuration do
-    %YakiCore.Configuration {
-      adapters: adapters(),
-      default_adapter: default_adapter(),
-      variants: variants(),
-    }
-  end
-
-  defmacro __using__(_opts) do
-    quote do
-      import YakiCore
-      # @behaviour YakiCore
-    end
+    file
   end
 end
